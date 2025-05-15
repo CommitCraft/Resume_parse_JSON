@@ -227,51 +227,73 @@ function extractDataFromText(text: string): PersonData {
   }
   
   // Enhanced education extraction with detailed parsing
-  const educationSection = extractSection(text, 'education|academic|qualification|studies', 'experience|skills|projects');
-  if (educationSection) {
-    const educationItems = educationSection
-      .split(/\n\s*\n/)
-      .filter(item => item.trim().length > 0)
-      .map(item => {
-        const lines = item.split('\n').map(line => line.trim());
-        const degreeMatch = item.match(/(?:degree|diploma|certificate|bachelor|master|phd|b\.?s\.?|m\.?s\.?|ph\.?d\.?|b\.?a\.?|m\.?a\.?)(?:[\s:]+)([\w\s.]+)/i);
-        const fieldMatch = item.match(/(?:field|major|specialization|in|concentration)(?:[\s:]+)([\w\s.]+)/i);
-        const dateMatch = item.match(/(\d{4})\s*[-–]\s*(\d{4}|present|current|ongoing)/i);
-        
-        return {
-          institution: lines[0],
-          degree: degreeMatch ? degreeMatch[1] : undefined,
-          field: fieldMatch ? fieldMatch[1] : undefined,
-          startDate: dateMatch ? dateMatch[1] : undefined,
-          endDate: dateMatch ? dateMatch[2].toLowerCase() : undefined
-        };
-      })
-      .filter(edu => edu.institution && edu.institution.length > 0);
-    
-    if (educationItems.length > 0) {
-      data.education = educationItems;
-    }
+const educationSection = extractSection(text, 'education|academic|qualification|studies', 'experience|skills|projects');
+
+if (educationSection) {
+  const educationItems = educationSection
+    .split(/\n\s*\n/) // split by blank lines (paragraphs)
+    .filter(item => item.trim().length > 0)
+    .map(item => {
+      // Find lines matching institution keywords
+      const lines = item.split('\n').map(line => {
+        const trimmed = line.trim();
+        const match = trimmed.match(/(?:institute|university|college|school|master|b\.?s\.?|m\.?s\.?|ph\.?d\.?|b\.?a\.?|m\.?a\.?)[\s:]+([\w\s.]+)/i);
+        return match ? trimmed : null;  // return full line if matched
+      }).filter(Boolean);
+
+      // Degree extraction
+      const degreeMatch = item.match(/(?:degree|diploma|certificate|bachelor|master|phd|b\.?s\.?|m\.?s\.?|ph\.?d\.?|b\.?a\.?|m\.?a\.?)[\s:]+([\w\s.]+)/i);
+
+      // Field/major extraction
+      const fieldMatch = item.match(/(?:field|major|specialization|in|concentration)[\s:]+([\w\s.]+)/i);
+
+      // Date extraction (start and end years)
+      const dateMatch = item.match(/(\d{4})\s*[-–]\s*(\d{4}|present|current|ongoing)/i);
+
+      return {
+        institution: lines.length > 0 ? lines[0] as string : '',
+        degree: degreeMatch ? degreeMatch[1].trim() : undefined,
+        field: fieldMatch ? fieldMatch[1].trim() : undefined,
+        startDate: dateMatch ? dateMatch[1] : undefined,
+        endDate: dateMatch ? dateMatch[2].toLowerCase() : undefined
+      };
+    })
+    // Filter out entries without institution
+    .filter(edu => edu.institution && edu.institution.length > 0);
+
+  if (educationItems.length > 0) {
+    data.education = educationItems as Required<Pick<typeof educationItems[number], 'institution'>>[]; // type assertion for TS
   }
+}
+
   
   // Enhanced skills extraction with categorization and filtering
-  const skillsSection = extractSection(text, 'skills|technologies|expertise|competencies|technical skills|proficiencies', 'education|experience|projects');
-  if (skillsSection) {
-    const skills = skillsSection
-      .split(/[,;•|\n]/)
-      .map(skill => skill.trim())
-      .filter(skill => {
-        const isValid = skill.length > 1 && 
-                       skill.length < 50 && 
-                       !/^\d+$/.test(skill) &&
-                       !/^[^a-zA-Z]+$/.test(skill) &&
-                       !/^(and|or|the|a|an|in|on|at|to|for|of)$/i.test(skill);
-        return isValid;
-      });
-    
-    if (skills.length > 0) {
-      data.skills = [...new Set(skills)].sort();
-    }
+const skillsSection = extractSection(
+  text, 
+  'skills|technologies|expertise|competencies|technical skills|proficiencies', 
+  'education|experience|projects'
+);
+
+if (skillsSection) {
+  const skills = skillsSection
+    .split(/[,;•|\n]/) // split by common delimiters and newlines
+    .map(skill => skill.trim())
+    .filter(skill => {
+      const isValid = 
+        skill.length > 1 &&
+        skill.length < 50 &&
+        !/^\d+$/.test(skill) &&                  // exclude pure numbers
+        !/^[^a-zA-Z]+$/.test(skill) &&          // exclude strings without letters
+        !/^(and|or|the|a|an|in|on|at|to|for|of)$/i.test(skill); // exclude common stopwords
+      return isValid;
+    });
+  
+  if (skills.length > 0) {
+    // Remove duplicates and sort alphabetically
+    data.skills = [...new Set(skills)].sort((a, b) => a.localeCompare(b));
   }
+}
+
   
   // Enhanced experience extraction with detailed parsing
   const experienceSection = extractSection(text, 'experience|work history|employment|professional background|career', 'education|skills|projects');
