@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { FileWithPreview, PersonData } from './types';
 import FileUploader from './components/FileUploader';
 import DataDisplay from './components/DataDisplay';
@@ -45,7 +45,7 @@ function App() {
             <h1 className="text-xl font-bold text-gray-900">File to JSON Converter</h1>
           </div>
           <a 
-            href="https://github.com" 
+            href="https://github.com/commitcraft" 
             target="_blank" 
             rel="noopener noreferrer"
             className="text-gray-500 hover:text-gray-700 transition"
